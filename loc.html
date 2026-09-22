@@ -1,1 +1,75 @@
+from PIL import Image
+from PIL.ExifTags import TAGS, GPSTAGS
 
+
+def get_gps(image_path):
+    image = Image.open(image_path)
+    exif = image.getexif()
+
+    gps_info = None
+
+    for key, value in exif.items():
+        tag = TAGS.get(key, key)
+
+        print(tag, ":", value)
+
+        if tag == "GPSInfo":
+            gps_info = value
+
+    if gps_info is None:
+        return None
+
+    # Vérifie que GPSInfo est bien un dictionnaire
+    if not hasattr(gps_info, "items"):
+        print("GPSInfo trouvé, mais son contenu n'est pas lisible directement.")
+        return None
+
+    gps = {}
+
+    for gps_key, gps_value in gps_info.items():
+        gps_tag = GPSTAGS.get(gps_key, gps_key)
+        gps[gps_tag] = gps_value
+
+    if "GPSLatitude" not in gps or "GPSLongitude" not in gps:
+        return None
+
+    def to_decimal(coords, ref):
+        degrees = float(coords[0])
+        minutes = float(coords[1])
+        seconds = float(coords[2])
+
+        decimal = degrees + minutes / 60 + seconds / 3600
+
+        if ref in ("S", "W"):
+            decimal = -decimal
+
+        return decimal
+
+    latitude = to_decimal(
+        gps["GPSLatitude"],
+        gps["GPSLatitudeRef"]
+    )
+
+    longitude = to_decimal(
+        gps["GPSLongitude"],
+        gps["GPSLongitudeRef"]
+    )
+
+    return latitude, longitude
+
+
+# Ton image
+image = r"C:\Users\matte\Documents\DSAA Numérique ENSAAMA\DSAA1\Expérimentation_Coding\photo.jpg"
+
+gps = get_gps(image)
+
+if gps:
+    latitude, longitude = gps
+
+    print()
+    print("Latitude :", latitude)
+    print("Longitude :", longitude)
+    print(f"Google Maps : https://www.google.com/maps?q={latitude},{longitude}")
+
+else:
+    print("Aucune donnée GPS trouvée.")
